@@ -1,4 +1,7 @@
 import RideSelector from "./RideSelector"
+import { UberContext } from "../context/uberContext"
+import { useContext } from "react"
+import { ethers } from "ethers"
 
 const style = {
     wrapper: `flex-1 h-full flex flex-col justify-between`,
@@ -8,17 +11,52 @@ const style = {
 }
 const Confirm = () => {
 
-    const storeTripDetails = async () => {} 
+    const {currentAccount,currentAddress, pickup, dropoff, price, selectedRide, pickupCoordinates, dropoffCoordinates, metamask} = useContext(UberContext)
+    // console.log(process.env.NEXT_PUBLIC_UBER_ADDRESS)
+    const storeTripDetails = async (pickup, dropoff) => {
+        try { 
+            await fetch('/api/db/saveTrips', {
+                method: 'POST',
+                headers: {
+                    'Content-Type' : 'application/json',
+                },
+                body: JSON.stringify({
+                    pickupLocation: pickup,
+                    dropoffLocation: dropoff,
+                    userWalleTAddress: currentAddress,
+                    price: price,
+                    selectedRide: selectedRide,
+                }),
+            })
+            await metamask.request({
+                method: 'eth_sendTransaction',
+                params: [
+                  {
+                    from: currentAccount,
+                    to: process.env.NEXT_PUBLIC_UBER_ADDRESS,
+                    gas: '0x7EF40', // 520000 Gwei
+                    value: ethers.utils.parseEther(price)._hex,
+                  },
+                ],
+              })
+            } catch (error) {
+              console.error(error)
+            }
+          }
 
   return (
     <div className={style.wrapper}>
-        <div className={style.rideSelectorContainer}><RideSelector /></div>
+        <div className={style.rideSelectorContainer}>
+            {
+                pickupCoordinates && dropoffCoordinates && <RideSelector />
+            }
+        </div>
         <div className={style.confirmButtonContainer}>
             <div className={style.confirmButtonContainer}>
                 <div 
                 className={style.confirmButton}
-                onClick={() => storeTripDetails()}
-                >Confirm UberX</div>
+                onClick={() => storeTripDetails(pickup, dropoff)}
+                >Confirm {selectedRide.services || 'UberX'}</div>
             </div>
         </div>
     </div>
